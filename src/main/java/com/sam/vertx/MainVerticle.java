@@ -18,6 +18,8 @@ public class MainVerticle extends AbstractVerticle {
 		initVerticles();
 		registEventBusCodec();
 		log.info("Finish main verticle starting");
+		
+		startPromise.complete();
 	}
   
   
