@@ -1,11 +1,11 @@
 package com.sam.vertx.model.service;
 
-import java.util.Optional;
-
 import com.sam.vertx.model.User;
 import com.sam.vertx.model.dao.UserDao;
 
+import io.vertx.core.Future;
 import io.vertx.core.Vertx;
+import io.vertx.sqlclient.RowSet;
 
 public class UserService {
 	
@@ -22,10 +22,10 @@ public class UserService {
 		userDao.addUser(newUser);
 	}
 	
-	public User getUser(String userId) {
-		Optional<User> result = userDao.getUser(userId);
-		System.out.println("Find " + result.get().getName());
-		return result.orElse(new User());
+	public Future<User> getUser(String userId) {
+//		Optional<User> result = userDao.getUser(userId);
+//		System.out.println("Find " + result.get().getName());
+		return userDao.getUser(userId);
 	}
 	
 }

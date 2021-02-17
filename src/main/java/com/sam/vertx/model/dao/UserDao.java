@@ -1,18 +1,19 @@
 package com.sam.vertx.model.dao;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.util.Collections;
 
 import com.sam.vertx.model.User;
 
+import io.vertx.core.Future;
 import io.vertx.core.Vertx;
 import io.vertx.core.impl.logging.Logger;
 import io.vertx.core.impl.logging.LoggerFactory;
 import io.vertx.mysqlclient.MySQLConnectOptions;
 import io.vertx.mysqlclient.MySQLPool;
 import io.vertx.sqlclient.PoolOptions;
+import io.vertx.sqlclient.RowSet;
 import io.vertx.sqlclient.Tuple;
+import io.vertx.sqlclient.templates.SqlTemplate;
 
 public class UserDao {
 
@@ -25,6 +26,7 @@ public class UserDao {
 	private static final String INSERT_STAT = "INSERT INTO user(userId,name) VALUES (?,?)";
 
 	private static final String FIND_BY_ID = "SELECT * FROM user WHERE userId=?";
+	private static final String FIND_BY_ID1 = "SELECT * FROM user WHERE userId=#{userId}";
 	
 	public UserDao(Vertx vertx) {
 		this.vertx = vertx;
@@ -60,31 +62,47 @@ public class UserDao {
 		      });
 	}
 	
-	public Optional<User> getUser(String userId) {
-		List<User> resultList = new ArrayList<>();
+	public Future<User> getUser(String userId) {
+//		List<User> resultList = new ArrayList<>();
 		
-		client.preparedQuery(FIND_BY_ID)
-		      .execute(Tuple.of(userId), ar -> {
-		    	  if(ar.succeeded()) {
-		    		  ar.result().forEach(rowData -> {
-		    			  User user = new User();
-		    			  user.setUserId(rowData.getString("userId"));
-		    			  user.setName(rowData.getString("name"));
-		    			  
-		    			  resultList.add(user);
-		    			  
-		    			  log.info("Find " + user.getName());
-		    		  });
+//		client.preparedQuery(FIND_BY_ID)
+//		      .execute(Tuple.of(userId), ar -> {
+//		    	  if(ar.succeeded()) {
+//		    		  ar.result().forEach(rowData -> {
+//		    			  User user = new User();
+//		    			  user.setUserId(rowData.getString("userId"));
+//		    			  user.setName(rowData.getString("name"));
+//		    			  
+//		    			  resultList.add(user);
+//		    			  
+//		    			  log.info("Find " + user.getName());
+//		    		  });
+//
+//		    		  log.info("find " + ar.result().size() + " users");
+//		    	  } else {
+//		    		  log.info("Nothing find");
+//		    	  }
+//		      });
 
-		    		  log.info("find " + ar.result().size() + " users");
-		    	  } else {
-		    		  log.info("Nothing find");
-		    	  }
-		      });
-		log.info("Finish query");
-		log.info("Result : " + resultList.size() + " users");
+//		log.info("Finish query");
+//		log.info("Result : " + resultList.size() + " users");
 		
-		return resultList.isEmpty() ? Optional.empty() : Optional.of(resultList.get(0));
+//		return resultList.isEmpty() ? Optional.empty() : Optional.of(resultList.get(0));
+		return SqlTemplate.forQuery(client, FIND_BY_ID1)
+						.mapTo(User.class)
+						.execute(Collections.singletonMap("userId", userId))
+						.map(rowSet -> rowSet.iterator().next());
+						
+//		return client.preparedQuery(FIND_BY_ID).execute(Tuple.of(userId)).map(result -> {
+//			User user = new User();
+//			result.forEach(rowData -> {
+//				user.setId(rowData.getInteger("id"));
+//				user.setUserId(rowData.getString("userId"));
+//				user.setName(rowData.getString("name"));
+//			});	
+//				
+//			return user;
+//		});
 	}
 	
 }

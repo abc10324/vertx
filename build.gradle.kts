@@ -32,6 +32,7 @@ dependencies {
   implementation("io.vertx:vertx-web")
   implementation("com.fasterxml.jackson.core:jackson-databind:2.11.3")
   implementation("io.vertx:vertx-mysql-client")
+  implementation("io.vertx:vertx-sql-client-templates")
   testImplementation("io.vertx:vertx-junit5")
   testImplementation("org.junit.jupiter:junit-jupiter:$junitJupiterVersion")
 }

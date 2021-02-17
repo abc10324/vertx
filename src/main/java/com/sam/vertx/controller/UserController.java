@@ -51,11 +51,18 @@ public class UserController {
 	private void getNewUser(RoutingContext ctx) {
 		String userId = ctx.request().getParam("userId");
 		
-		JsonObject jsonObj = JsonObject.mapFrom(userSvc.getUser(userId));
+		
+		userSvc.getUser(userId).onComplete(ar -> {
+			
+			JsonObject jsonObj = ar.succeeded() 
+							   ? JsonObject.mapFrom(ar.result()) 
+			    			   : JsonObject.mapFrom(Collections.singletonMap("status", "failed"));
+			
+			ctx.response()
+	    	   .putHeader("content-type", "application/json")
+	    	   .end(jsonObj.toString());
+		});
     	
-    	ctx.response()
-    	   .putHeader("content-type", "application/json")
-    	   .end(jsonObj.toString());
 	}
 	
 }
