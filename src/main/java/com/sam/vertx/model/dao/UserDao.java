@@ -3,21 +3,22 @@ package com.sam.vertx.model.dao;
 import java.util.Collections;
 
 import com.sam.vertx.model.User;
+import com.sam.vertx.util.Const;
 
-import io.vertx.core.Future;
 import io.vertx.core.Vertx;
+import io.vertx.core.eventbus.EventBus;
+import io.vertx.core.eventbus.Message;
 import io.vertx.core.impl.logging.Logger;
 import io.vertx.core.impl.logging.LoggerFactory;
 import io.vertx.mysqlclient.MySQLConnectOptions;
 import io.vertx.mysqlclient.MySQLPool;
 import io.vertx.sqlclient.PoolOptions;
-import io.vertx.sqlclient.RowSet;
 import io.vertx.sqlclient.Tuple;
 import io.vertx.sqlclient.templates.SqlTemplate;
 
 public class UserDao {
 
-	private Vertx vertx;
+	private EventBus eventBus;
 	
 	private MySQLPool client;
 	
@@ -25,84 +26,67 @@ public class UserDao {
 	
 	private static final String INSERT_STAT = "INSERT INTO user(userId,name) VALUES (?,?)";
 
-	private static final String FIND_BY_ID = "SELECT * FROM user WHERE userId=?";
 	private static final String FIND_BY_ID1 = "SELECT * FROM user WHERE userId=#{userId}";
 	
 	public UserDao(Vertx vertx) {
-		this.vertx = vertx;
-		init();
+		this.eventBus = vertx.eventBus();
+		init(vertx);
 	}
 	
-	private void init() {
+	private void init(Vertx vertx) {
+		setDataBaseConnection(vertx);
+		
+		eventBus.consumer("user.dao.addUser", this::addUser);
+		eventBus.consumer("user.dao.getUser", this::getUser);
+	}
+	
+	private void setDataBaseConnection(Vertx vertx) {
 		MySQLConnectOptions connectOptions = new MySQLConnectOptions()
-				  .setPort(3306)
-				  .setHost("localhost")
-				  .setDatabase("db01")
-				  .setUser("root")
-				  .setPassword("passw0rd");
+				  .setPort(Const.DB_PORT)
+				  .setHost(Const.DB_HOST)
+				  .setDatabase(Const.DB_NAME)
+				  .setUser(Const.DB_USER)
+				  .setPassword(Const.DB_PWD);
 
 		// Pool options
 		PoolOptions poolOptions = new PoolOptions()
 				.setMaxSize(5);
 
 		// Create the client pool
-		this.client = MySQLPool.pool(this.vertx,connectOptions, poolOptions);
-
+		this.client = MySQLPool.pool(vertx,connectOptions, poolOptions);
 	}
 	
-	public void addUser(User newUser) {
+	public void addUser(Message<Object> request) {
+		User newUser = (User) request.body();
+		
+		
 		client.preparedQuery(INSERT_STAT)
 		      .execute(Tuple.of(newUser.getUserId(),newUser.getName()), ar -> {
 		    	  if(ar.succeeded()) {
 		    		  log.info("Insert user " + newUser.getUserId() + " success");
+		    		  request.reply("success");
 		    	  } else {
 		    		  log.debug("Insert failure");
 		    		  log.debug(ar.cause().getMessage());
+		    		  request.fail(500, "insert fail");
 		    	  }
 		      });
 	}
 	
-	public Future<User> getUser(String userId) {
-//		List<User> resultList = new ArrayList<>();
+	public void getUser(Message<Object> request) {
+		String userId = (String) request.body();
 		
-//		client.preparedQuery(FIND_BY_ID)
-//		      .execute(Tuple.of(userId), ar -> {
-//		    	  if(ar.succeeded()) {
-//		    		  ar.result().forEach(rowData -> {
-//		    			  User user = new User();
-//		    			  user.setUserId(rowData.getString("userId"));
-//		    			  user.setName(rowData.getString("name"));
-//		    			  
-//		    			  resultList.add(user);
-//		    			  
-//		    			  log.info("Find " + user.getName());
-//		    		  });
-//
-//		    		  log.info("find " + ar.result().size() + " users");
-//		    	  } else {
-//		    		  log.info("Nothing find");
-//		    	  }
-//		      });
-
-//		log.info("Finish query");
-//		log.info("Result : " + resultList.size() + " users");
+		SqlTemplate.forQuery(client, FIND_BY_ID1)
+				.mapTo(User.class)
+				.execute(Collections.singletonMap("userId", userId), ar -> {
+					if(ar.succeeded() && ar.result().iterator().hasNext()) {
+						User result = ar.result().iterator().next();
+						request.reply(result, Const.USER_CODEC);
+					}else{
+						request.fail(500, null);
+					}
+				});
 		
-//		return resultList.isEmpty() ? Optional.empty() : Optional.of(resultList.get(0));
-		return SqlTemplate.forQuery(client, FIND_BY_ID1)
-						.mapTo(User.class)
-						.execute(Collections.singletonMap("userId", userId))
-						.map(rowSet -> rowSet.iterator().next());
-						
-//		return client.preparedQuery(FIND_BY_ID).execute(Tuple.of(userId)).map(result -> {
-//			User user = new User();
-//			result.forEach(rowData -> {
-//				user.setId(rowData.getInteger("id"));
-//				user.setUserId(rowData.getString("userId"));
-//				user.setName(rowData.getString("name"));
-//			});	
-//				
-//			return user;
-//		});
 	}
 	
 }

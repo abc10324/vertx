@@ -1,31 +1,53 @@
 package com.sam.vertx.model.service;
 
-import com.sam.vertx.model.User;
-import com.sam.vertx.model.dao.UserDao;
+import com.sam.vertx.util.Const;
 
-import io.vertx.core.Future;
 import io.vertx.core.Vertx;
-import io.vertx.sqlclient.RowSet;
+import io.vertx.core.eventbus.EventBus;
+import io.vertx.core.eventbus.Message;
+import io.vertx.core.impl.logging.Logger;
+import io.vertx.core.impl.logging.LoggerFactory;
 
 public class UserService {
 	
-	private Vertx vertx;
+	private static Logger log = LoggerFactory.getLogger(UserService.class);
 	
-	private UserDao userDao;
+	private EventBus eventBus;
 	
 	public UserService(Vertx vertx) {
-		this.vertx = vertx;
-		this.userDao = new UserDao(vertx);
+		this.eventBus = vertx.eventBus();
+		init();
 	}
 	
-	public void addUser(User newUser) {
-		userDao.addUser(newUser);
+	private void init() {
+		eventBus.consumer("user.svc.addUser",this::addUser);
+		eventBus.consumer("user.svc.getUser",this::getUser);
 	}
 	
-	public Future<User> getUser(String userId) {
-//		Optional<User> result = userDao.getUser(userId);
-//		System.out.println("Find " + result.get().getName());
-		return userDao.getUser(userId);
+	public void addUser(Message<Object> request) {
+		eventBus.request("user.dao.addUser", 
+						 request.body(), 
+						 Const.USER_CODEC, 
+	        ar -> {
+	        	String result = ar.succeeded() ? "success" : "failure";
+	        	request.reply(result);
+	        }
+        );
+	}
+	
+	public void getUser(Message<Object> request) {
+		log.info("start get user");
+		eventBus.request("user.dao.getUser", 
+						 request.body(), 
+			ar -> {
+				if(ar.succeeded()) {
+					request.reply(ar.result().body(),Const.USER_CODEC);
+				} else {
+					request.fail(404, "not found");
+				}
+				
+			}
+		);
 	}
 	
 }
